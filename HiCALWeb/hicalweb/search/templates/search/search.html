@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block pagetitle %}Search{% endblock %}
+
+{%block main-class%}col-md-12 pt-4 px-0{%endblock%}
+
+{% block navbar-noncollapse %}
+<form id="search_form" name="search_input" class="input-group mx-auto w-50 d-lg-none">
+    <input autocomplete="off" class="form-control search_input-sm py-2 rounded-pill mr-1 pr-5" type="search" placeholder="Search" id="search_input-sm" name="search_input">
+    <span class="input-group-append">
+     <button class="btn rounded-pill border-0 ml-n5" type="submit"
+         ic-indicator="#searchSpinner" ic-target="#search_result"
+         ic-include="#search_input-sm" ic-post-to="{% url 'search:get_docs' %}"
+
+            >
+        <i class="fas fa-search text-secondary"></i>
+     </button>
+    </span>
+</form>
+{% endblock %}
+
+{% block navbar-center %}
+<form id="search_form" name="search_input" class="input-group mx-auto w-75">
+  <input autocomplete="off" class="form-control py-2 rounded-pill mr-1 pr-5" type="search" placeholder="Search" id="search_input" name="search_input">
+  <span class="input-group-append">
+     <button class="btn rounded-pill border-0 ml-n5" type="submit"
+             ic-target="#search_result" ic-include="#search_input" ic-post-to="{% url 'search:get_docs' %}"
+     >
+  	  <i class="fas fa-search text-secondary"></i>
+     </button>
+    </span>
+</form>
+{% endblock %}
+
+{% block main %}
+<div class="row flex-items-lg-middle">
+</div>
+
+<div class="col-md-7 pt-2 mx-auto">
+  <div id="search_result">
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="http://cdn.intercoolerjs.org/intercooler-1.1.1.min.js"></script>
+    <script src="{% static 'js/mousetrap.min.js' %}"></script>
+    <script src="{% static 'js/moment.min.js' %}"></script>
+    <script src="{% static 'js/idle.js' %}"></script>
+    <script src="{% static 'js/timer.js' %}"></script>
+
+    <script>
+
+        var loaded_docs = {}; // dict of loaded documents to prevent reloading doc content.
+        var documents_timers = {}; // dict of timers for each loaded doc.
+
+        // flag to check if a modal is currently opened
+        var isModalOpen = false;
+        var currentOpenedModalDocId = null;
+
+        $( "#search_input" ).focus(function() {
+            var now = + new Date();
+            $.ajax({
+                url: '{% url 'search:post_search_status' %}',
+                method: 'POST',
+                data: JSON.stringify({
+                    'client_time': now,
+                    'isFocused': true,
+                    'search_bar_value': $("#search_input").val(),
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    'page_title': document.title
+                }),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+
+            console.log("Search input is focused.", now);
+        });
+
+        $( "#search_input").blur(function() {
+            var now = + new Date();
+            $.ajax({
+                url: '{% url 'search:post_search_status' %}',
+                method: 'POST',
+                data: JSON.stringify({
+                    'client_time': now,
+                    'isFocused': false,
+                    'search_bar_value': $("#search_input").val(),
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    'page_title': document.title
+                }),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+            console.log("Search input is unfocused.", now);
+        });
+
+        $('#search_button').on('beforeSend.ic',
+            function(evt, elt, data, settings, xhr, requestId) {
+                var now = + new Date();
+                $.ajax({
+                    url: '{% url 'search:post_search_request' %}',
+                    method: 'POST',
+                    data: JSON.stringify({
+                        'client_time': now,
+                        'query': $("#search_input").val(),
+                        'numdisplay': $("#id_numdisplay").val(),
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                        'page_title': document.title
+                    }),
+                    success: function (result) {
+                        console.log(result['message']);
+                    }
+                });
+            });
+
+        var SERPTimer = AwayTimer();
+
+        var search_form = document.querySelector('search_form');
+        Mousetrap(search_form).handleKey = function handleKey(character, modifiers, event){
+            if(event.type == "keydown" && $("#search_input").is(':focus')){
+                var now = + new Date();
+                $.ajax({
+                    url: '{% url 'search:post_keystroke' %}',
+                    method: 'POST',
+                    data: JSON.stringify({
+                        'client_time': now,
+                        'page_title': document.title,
+                        'character': character,
+                        'search_bar_value': $("#search_input").val(),
+                        'isSearchbarFocused': $("#search_input").is(':focus'),
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    }),
+                    success: function (result) {
+                        console.log(result['message']);
+                    }
+                });
+                console.log("Character pressed: '"+character+"'", "at:", now);
+            }
+            document.body.click();
+        };
+
+        Mousetrap.bind(['h', 'r', 's'], function(e, key) {
+            var current_doc_id = get_current_opened_modal_doc_id();
+            if(current_doc_id == null){
+                return;
+            }
+            var doc_title = $("#doc-"+current_doc_id+"-title").html();
+            var doc_snippet = $("#doc-"+current_doc_id+"-snippet").html();
+
+            if(key == 'h') {
+                send_judgment_and_hide_modal(current_doc_id, doc_title, doc_snippet, 2, 'keyboard');
+            } else if(key == 'r') {
+                send_judgment_and_hide_modal(current_doc_id, doc_title, doc_snippet, 1, 'keyboard');
+            } else if(key == 's') {
+                send_judgment_and_hide_modal(current_doc_id, doc_title, doc_snippet, 0, 'keyboard');
+            }
+            document.body.click();
+        });
+
+        Mousetrap.bind(['ctrl+f', 'command+f'], function(e) {
+            console.log("Ctrl+f triggered. isModalOpen: " + isModalOpen + ". currentOpenedModalDocId: " +  currentOpenedModalDocId);
+            post_ctrlf();
+            if(!isModalOpen){
+                return;
+            }
+            e.preventDefault();
+            var docid = get_current_opened_modal_doc_id();
+            $( "#search_content_doc_"+docid).focus();
+            document.body.click();
+            return false;
+        });
+
+        function post_ctrlf(){
+            var isOnSERP = !isModalOpen;
+            var docid = null;
+            if(isModalOpen){
+                docid = get_current_opened_modal_doc_id();
+            }
+            var now = + new Date();
+            $.ajax({
+                url: '{% url 'progress:post_ctrlf' %}',
+                method: 'POST',
+                data: JSON.stringify({
+                    'client_time': now,
+                    'page_title': document.title,
+                    'extra_context': {
+                        'doc_id': docid,
+                        'isOnSERP': isOnSERP,
+                        'isModalOpen': isModalOpen
+                    },
+                    'search_field_value': $("#search_content_doc_"+docid).val(),
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                }),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+        }
+
+        function get_current_opened_modal_doc_id(){
+            if(isModalOpen){
+                return currentOpenedModalDocId;
+            }
+            else return null;
+        }
+
+        function send_judgment(doc_id, current_doc_title, current_doc_snippet, relevance, method, isFromSearchModal, timeVerbose, ctrlf_terms) {
+            if(timeVerbose == null){
+                var now = + new Date();
+                timeVerbose = {
+                    "timestamp": now,
+                    "timeActive": null,
+                    "timeAway": null,
+                    "source": "searchSERP",
+                    "judged": true,
+                    "relevance": relevance,
+                    "method": method,
+                    'ctrl_f_terms_input': ctrlf_terms,
+                    'found_ctrl_f_terms_in_title': marked_matches_in_document_title,
+                    'found_ctrl_f_terms_in_full_doc': marked_matches_in_document_content
+                };
+            }else{
+                var now = timeVerbose['timestamp'];
+            }
+            console.log("Sending judgment call to backend for document id: " + doc_id);
+            let source = "search";
+            if (isFromSearchModal) {
+              source = "searchmodal"
+            }
+            var data = {
+                'doc_id': doc_id,
+                'doc_title': current_doc_title,
+                'doc_CAL_snippet': "",
+                'doc_search_snippet': current_doc_snippet,
+                'query': $("#search_input").val(),
+                'relevance': relevance,
+                'time_to_judge': "NA",
+                'source': source,
+                'client_time': now,
+                'method': method,
+                'timeVerbose': timeVerbose,
+                'search_query': $("#search_input").val(),
+                'ctrl_f_terms_input': ctrlf_terms,
+                'found_ctrl_f_terms_in_title': marked_matches_in_document_title,
+                'found_ctrl_f_terms_in_summary': [],
+                'found_ctrl_f_terms_in_full_doc': marked_matches_in_document_content,
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'page_title': document.title
+            };
+
+            $.ajax({
+                url: '{% url 'judgment:post_judgment' %}',
+                method: 'POST',
+                data: JSON.stringify(data),
+                success: function (result) {
+                    console.log(result['message']);
+                    if(result['is_max_judged_reached']){
+                        window.location.href = "{% url 'progress:home' %}";
+                    }
+                },
+                error: function (result) {
+                    console.error("Something went wrong. " +
+                            "Judgment may have not been recorded.", result['responseText'])
+                }
+            });
+
+            update_doc_status(doc_id, relevance);
+
+            return false;
+        }
+
+        var find_borders_css = function (index, className){return (className.match (/(^|\s)border-\S+/g) || []).join(' ');};
+        function update_doc_status(doc_id, relevance){
+            console.log("Updating document " + doc_id + " status");
+            if(relevance === 2){
+                $("#doc_"+doc_id+"_card").removeClass(find_borders_css).addClass("border-left border-3 border-success");
+            }else if(relevance === 1){
+                $("#doc_"+doc_id+"_card").removeClass(find_borders_css).addClass("border-left border-3 border-warning");
+            }else if(relevance === 0){
+                $("#doc_"+doc_id+"_card").removeClass(find_borders_css).addClass("border-left border-3 border-danger");
+            }
+            document.getElementById("isJudged_"+doc_id).style.display = "inherit";
+        }
+
+        function hide_modal(doc_id){
+            console.log("hiding modal: ", doc_id);
+            $('#doc-'+doc_id+'-modal').modal('hide');
+            resetMatchesLists();
+        }
+
+        function send_judgment_and_hide_modal(doc_id, doc_title, doc_snippet, relevance, method){
+            var now = + new Date;
+            if(documents_timers[doc_id] == undefined){
+                return;
+            }
+            var timeActive = Date.now() - documents_timers[doc_id].startTime - documents_timers[doc_id].totalAwayTime;
+            var timeAway = documents_timers[doc_id].totalAwayTime;
+            var ctrlf_terms = $("#search_content_doc_"+doc_id).val();
+            var timeVerbose = {
+                "timestamp": now,
+                "timeActive": timeActive,
+                "timeAway": timeAway,
+                "source": "searchModal",
+                "judged": true,
+                "relevance": relevance,
+                "method": method,
+                "ctrl_f_terms_input": ctrlf_terms,
+                "found_ctrl_f_terms_in_title": marked_matches_in_document_title,
+                "found_ctrl_f_terms_in_full_doc": marked_matches_in_document_content
+            };
+            send_judgment(doc_id, doc_title, doc_snippet, relevance, method,  true, timeVerbose, ctrlf_terms);
+            var element = document;
+            var event = new CustomEvent("new_judgment");
+            element.dispatchEvent(event);
+            hide_modal(doc_id);
+            return false;
+        }
+        var is_from_judement = false;
+        var element = document;
+        element.addEventListener("new_judgment", function (e) {
+            is_from_judement = true;
+        }, false);
+
+        var marked_matches_in_document_title = [];
+        var marked_matches_in_document_content = [];
+        /**
+        * Update dicts of matches in document title, and content
+        */
+        function updateMatchesLists(){
+            resetMatchesLists();
+            var document_title_mark_instances = $("#modal-title-"+currentOpenedModalDocId).find("mark");
+            var document_content_mark_instances = $("#document_"+currentOpenedModalDocId+"_raw_content").find("mark");
+
+            var i;
+            for(i = 0; i < document_title_mark_instances.length; i++){
+                var data = {
+                    "match": document_title_mark_instances[i].innerHTML,
+                    "wholeWord": get_surroundings_of_match(document_title_mark_instances[i])
+                };
+                marked_matches_in_document_title.push(data);
+            }
+            for(i = 0; i < document_content_mark_instances.length; i++){
+                var data = {
+                    "match": document_content_mark_instances[i].innerHTML,
+                    "wholeWord": get_surroundings_of_match(document_content_mark_instances[i])
+                };
+                marked_matches_in_document_content.push(data);
+            }
+        }
+
+        /**
+         * Gets the surrounding letters of a highlighted match.
+         * E.g. "The company is ba<mark>se</mark>d in California"
+         * retrun "based".
+         */
+        function get_surroundings_of_match(match){
+            if(match.previousSibling != undefined && match.nextSibling != undefined){
+                var prev = match.previousSibling.nodeValue;
+                var next = match.nextSibling.nodeValue;
+                if(prev == ""){
+                    prev = " ";
+                }
+                if(next == ""){
+                    next = " ";
+                }
+
+                var wholeMatch = [];
+                var i;
+                for(i = 0; i < prev.length; i++){
+                    var index = prev.length - i - 1;
+                    if(prev[index] != "" && prev[index] != " ") {
+                        wholeMatch.push(prev[index]);
+                    } else {
+                        break;
+                    }
+                }
+                wholeMatch.reverse();
+                wholeMatch.push.apply(wholeMatch, match.innerHTML.split());
+                for(i = 0; i < next.length; i++){
+                    if(next[i] != "" && next[i] != " "){
+                        wholeMatch.push(next[i]);
+                    }else{
+                        break;
+                    }
+                }
+                return wholeMatch.join("");
+            }else {
+                return null;
+            }
+        }
+
+        function resetMatchesLists(){
+            marked_matches_in_document_title = [];
+            marked_matches_in_document_content = [];
+        }
+
+    </script>
+{% endblock %}

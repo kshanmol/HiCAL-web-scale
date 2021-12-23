@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load i18n has_group crispy_forms_tags %}
+
+{% block pagetitle %}Home{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.js" type="application/javascript"></script>
+{% endblock %}
+
+{% block main %}
+<div class="row">
+
+  <div class="col-md-4">
+    <div class="card border-0">
+      <div class="card-block">
+        {% if user.current_task %}
+
+        <h2 class="text-secondary">Current session</h2>
+        <hr class="d-none d-md-block">
+
+        <div class="list-group">
+          <div class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">{{ user.current_task.topic.title }}</h5>
+              {% if user.current_task.topic.number %}<small>#{{ user.current_task.topic.number }}</small>{% endif %}
+            </div>
+            {% if user.current_task.topic.description %}<p class="mb-1">{{ user.current_task.topic.description }}</p>{% endif %}
+            <p class="mb-1"><small><strong>Seed query:</strong> {{ user.current_task.topic.seed_query }}</small></p>
+            <p class="mb-1"><small><strong>Strategy:</strong> {{ user.current_task.get_strategy_display }}</small></p>
+            {% if task.task_obj.max_number_of_judgments > 0 %}<p class="mb-1"><small><strong>Effort (max judgments):</strong> {{ user.current_task.max_number_of_judgments }}</small></p>{% endif %}
+            <small>Created {{ user.current_task.created_at }}</small>
+          </div>
+        </div>
+
+        {% else %}
+        <h2 class="text-danger">Please create a session</h2>
+        <hr>
+        <p>You currently don't have an active session. Please create a session first.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+      <div class="card border-0">
+        <div class="card-block">
+
+          {% if user.current_task %}
+          <h2 class="text-secondary">Judgments</h2>
+          <hr>
+          <div class="row">
+            <div class="col-md-12">
+              <table class="table table-borderless table-hover">
+                <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>CAL</th>
+                  <th>Search</th>
+                  <th>All</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                  <th scope="row"><span
+                    class="text-success">Highly relevant</span></th>
+                  <td>{{ total_highlyRelevant_CAL }}</td>
+                  <td>{{ total_highlyRelevant_search }}</td>
+                  <td>{{ total_highlyRelevant_CAL|add:total_highlyRelevant_search }}</td>
+                </tr>
+                <tr>
+                  <th scope="row"><span
+                    class="text-warning">Relevant</span></th>
+                  <td>{{ total_relevant_CAL }}</td>
+                  <td>{{ total_relevant_search }}</td>
+                  <td>{{ total_relevant_CAL|add:total_relevant_search }}</td>
+                </tr>
+                <tr>
+                  <th scope="row"><span
+                    class="text-danger">Non relevant</span></th>
+                  <td>{{ total_nonrelevant_CAL }}</td>
+                  <td>{{ total_nonrelevant_search }}</td>
+                  <td>{{ total_nonrelevant_CAL|add:total_nonrelevant_search }}</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-8 col-sm-5 mx-auto center-text">
+              <canvas id="piechart" width="200" height="200"
+                      class="mt-2"></canvas>
+            </div>
+            <script>
+              var ctx = document.getElementById("piechart");
+              var data = {
+                  labels: [
+                      "Highly relevant",
+                      "Relevant",
+                      "Non relevant"
+                  ],
+                  datasets: [
+                      {
+                          data: [
+                              {{ total_highlyRelevant_CAL|add:total_highlyRelevant_search }},
+                              {{ total_relevant_CAL|add:total_relevant_search }},
+                              {{ total_nonrelevant_CAL|add:total_nonrelevant_search }}],
+                          backgroundColor: [
+                              "#5cb85c",
+                              "#f0ad4e",
+                              "#d9534f"
+                          ],
+                          hoverBackgroundColor: [
+                              "#5cb85c",
+                              "#f0ad4e",
+                              "#d9534f"
+                          ]
+                      }]
+              };
+              var myPieChart = new Chart(ctx, {
+                  type: 'pie',
+                  data: data,
+                  options: {
+                      legend: {
+                          display: true,
+                          position: 'right'
+                      }
+                  }
+              });
+              </script>
+          </div>
+          {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 mb-4 ">
+      <div class="card-block">
+        <h2 class="text-secondary">Create new session</h2>
+        <hr>
+
+        <div class="btn-group btn-group-sm d-flex w-100 nav nav-pills flex-nowrap mb-3" role="group">
+          <button type="button" class="btn btn-outline-secondary shadow-none w-100 active" data-toggle="pill" href="#pills-custom-topic">Custom</button>
+          <button type="button" class="btn btn-outline-secondary shadow-none w-100" data-toggle="pill" href="#pills-predefined-topic">Pre-defined topics</button>
+        </div>
+
+        <div class="tab-content">
+
+          <!-- Custom topic tab -->
+          <div class="tab-pane fade active show" id="pills-custom-topic" role="tabpanel">
+            <div class="row">
+              <div class="col-md-12">
+                <div class="card">
+                  <div class="card-body">
+                    <form method="POST">
+                    {% csrf_token %}
+                    {% crispy form_topic %}
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Predefined topic tab -->
+          <div class="tab-pane fade" id="pills-predefined-topic" role="tabpanel">
+            <div class="row">
+              <div class="col-md-12">
+                <div class="card">
+                  <div class="card-body">
+                    <form method="POST">
+                    {% csrf_token %}
+                    {% crispy form %}
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// dynamically show "show_full_document_content" field based on strategy field value
+$('#id_topic-strategy').on('change', function() {
+  let newval = this.value;
+  if (newval.includes("para")){
+    $("#topic-show_full_document_content").removeClass("d-none");
+  }else{
+    $("#topic-show_full_document_content").addClass("d-none");
+  }
+});
+$('#id_predefined-strategy').on('change', function() {
+  let newval = this.value;
+  if (newval.includes("para")){
+    $("#predefined-show_full_document_content").removeClass("d-none");
+  }else{
+    $("#predefined-show_full_document_content").addClass("d-none");
+  }
+});
+</script>
+
+{% endblock %}

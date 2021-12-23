@@ -1,0 +1,22 @@
+Loading : /app/.env
+The .env file has been loaded. See base.py for more information
+/mnt/a536sing/sdac1/Disk3/1415wb/1415wb-22.warc.gz.idx 42306215 0
+/mnt/a536sing/sdac1/Disk3/1415wb/1415wb-22.warc.gz.idx 42295329 0
+/mnt/a536sing/sdaa1/Disk3/1302wb/1302wb-55.warc.gz.idx 39707431 0
+/mnt/a536sing/sdi1/Disk1/0309wb/0309wb-78.warc.gz.idx 226292506 0
+/mnt/a536sing/sdj1/Disk1/0305wb/0305wb-13.warc.gz.idx 195138781 1
+/mnt/a536sing/sdf1/Disk1/0202wb/0202wb-43.warc.gz.idx 136585978 0
+/mnt/a536sing/sdg1/Disk1/0207wb/0207wb-33.warc.gz.idx 84939394 0
+/mnt/a536sing/sdaj1/Disk4/1800wb/1800wb-75.warc.gz.idx 113099287 1
+/mnt/a536sing/sdn1/Disk2/0700tw/0700tw-15.warc.gz.idx 28070194 1
+/mnt/a536sing/sdh1/Disk1/0200tw/0200tw-83.warc.gz.idx 67674145 1
+/mnt/a536sing/sdab1/Disk3/1305wb/1305wb-08.warc.gz.idx 84588375 0
+/mnt/a536sing/sdp1/Disk2/0800tw/0800tw-45.warc.gz.idx 230313905 1
+/mnt/a536sing/sdl1/Disk2/0512wb/0512wb-54.warc.gz.idx 134226998 0
+/mnt/a536sing/sdaj1/Disk4/1802wb/1802wb-99.warc.gz.idx 161379796 0
+/mnt/a536sing/sdaj1/Disk4/1802wb/1802wb-99.warc.gz.idx 161383252 0
+/mnt/a536sing/sdf1/Disk1/0202wb/0202wb-05.warc.gz.idx 30679131 0
+/mnt/a536sing/sdf1/Disk1/0202wb/0202wb-17.warc.gz.idx 188603481 1
+/mnt/a536sing/sdf1/Disk1/0202wb/0202wb-17.warc.gz.idx 188571595 1
+/mnt/a536sing/sdaj1/Disk4/1801wb/1801wb-04.warc.gz.idx 190372718 1
+/mnt/a536sing/sdn1/Disk2/0703wb/0703wb-04.warc.gz.idx 64774183 0

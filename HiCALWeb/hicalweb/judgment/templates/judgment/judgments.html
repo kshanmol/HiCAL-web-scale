@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags  %}
+{% block pagetitle %}Judgments{% endblock %}
+
+
+{% block main %}
+<div class="row top-bottom-margin">
+  <div class="col-md-9 order-2 order-md-1">
+    <div class="card mb-2 border-0">
+      <div class="card-block">
+        <h2 class="text-secondary">Judged documents</h2>
+        <hr>
+        <div class="row extra-top-margin">
+          <div class="col-md-12 table-responsive">
+            <table class="table table-borderless table-hover">
+              <thead>
+              <tr>
+                <th>Docno</th>
+                <th>Document Title</th>
+                <th>Judgment</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for row in judgments %}
+              <tr data-toggle="modal" data-target=".doc-modal" style="cursor: pointer;" onclick="return load_doc('{{ row.doc_id }}');">
+                <th scope="row"><code><span
+                  class="text-primary small">{{ row.doc_id }}</span></code>
+                </th>
+                <td>{{ row.doc_title|truncatechars:100 }}</td>
+                <td>
+                  {% if row.relevance == 2 %}
+                  <span class="text-success">Highly relevant</span>
+                  {% elif row.relevance == 1 %}
+                  <span class="text-warning">Relevant</span>
+                  {% else %}
+                  <span class="text-danger">Non-relevant</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-md-3 order-1 order-md-2 mb-3">
+    <div class="card border-0 sticky-top" style="top: 73px; z-index: 0;">
+      <div class="card-block">
+        <h2 class="text-secondary">Operations</h2>
+        <hr>
+        <a id="import_csv" href="#" class="btn btn-outline-secondary btn-sm mb-3 btn-block" data-toggle="modal" data-target="#importModal">Import judgments</a>
+        <a id="export_csv" href="#" class="btn btn-outline-secondary btn-sm mb-3 btn-block" data-toggle="modal" data-target="#exportModal">Export to csv</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div class="modal" id="importModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-primary">Import judgments</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form method="POST" enctype="multipart/form-data" id="import_csv_form">
+          <div class="modal-body">
+              <p>Your document judgment file needs to be in csv format. Please reformat your csv to have two columns, <code>docno</code>, and <code>judgment</code>.</p>
+              <p>For example:</p>
+                    <pre class="small text-muted">
+                      docno, judgment
+                      mydocid1, 1,
+                      mydocid2, 0,
+                      mydocid3, 2</pre>
+
+              {% csrf_token %}
+              {% crispy upload_form %}
+
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+            <button class="btn btn-outline-secondary" id="import_csv_button" type="submit">Upload</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Export Modal -->
+  <div class="modal" id="exportModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="exampleModalLabel">Export judgments</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form method="GET" id="export_csv_form">
+          {% csrf_token %}
+          <div class="modal-body">
+              <p>Your judgments will be in csv format, with two columns, <code>docno</code>, and <code>judgment</code>.</p>
+              <p>For example:</p>
+                    <pre class="small text-muted">
+                      docno, judgment
+                      mydocid1, 1,
+                      mydocid2, 0,
+                      mydocid3, 2</pre>
+
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+            <button class="btn btn-outline-secondary" id="export_csv_button" name="export_csv" value="export_csv" type="submit">Export to CSV</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Document Modal -->
+  <div class="modal doc-modal" id="doc-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xlg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-title">
+            <span class="text-danger">Please wait...</span>
+          </h5>
+          <button type="button" class="close" data-dismiss="modal">
+            <span>&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" style="overflow: auto; min-height: 450px; max-height: inherit;">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="document-modal-content"
+                   id="document-modal-content"
+                   data-doc-id="">
+                <div class="document_content" id="document_content">
+                  <div class="row bottom-margin small">
+                    <div class="col-md-6 ">
+                      <small class="document_content_date"></small>
+                    </div>
+                    <div class="col-md-6 align-right small">
+                      <code class="document_content_id"></code>
+                    </div>
+                  </div>
+                  <div class="document_content_text"
+                       id="document_raw_content">
+                    <p><span class="text-danger">Fetching document. Please wait...</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-2 d-none d-md-block" id="sideBar">
+              <nav class="sidebar-nav-fixed bg-faded font-open-sans">
+                <ul class="nav nav-pills flex-column little-padding">
+                  <div class="cal-search">
+                    <li class="mt-1">
+                      <span class="gray-text align-left">Highlight content:</span>
+                      <form id="searchContentForm_doc"
+                            class="top-margin">
+                        <div class="input-group">
+                          <input id="search_content_doc"
+                                 type="search"
+                                 class="form-control"
+                                 placeholder="Search">
+
+                          <div class="input-group-append">
+                            <button class="btn btn-sm btn-secondary"
+                                    data-search="next"
+                                    id="searchNextDoc"
+                                    type="button">&darr;
+                            </button>
+                            <button class="btn btn-sm btn-secondary"
+                                    data-search="prev"
+                                    type="button">&uarr;
+                            </button>
+                            <button class="btn btn-sm btn-secondary"
+                                    data-search="clear"
+                                    type="button">&times;
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    </li>
+                  </div>
+                </ul>
+
+              </nav>
+
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+
+{% block extra_scripts %}
+    <script>
+
+        var loaded_docs = {}; // dict of loaded documents to prevent reloading doc content.
+
+        function load_doc(docid) {
+            if (!(docid in loaded_docs)) {
+
+                // Show loading message and content
+                $("#modal-title").html("<span class='text-danger'>Fetching...</span>");
+                $('.document_content_text').html("<span class='text-danger'>Please wait. Fetching document.</span>");
+                $('.document_content_date').html("");
+                $('.document_content_id').html("");
+
+
+                $.ajax({
+                    url: '{% url 'search:get_doc' %}?docid=' + docid,
+                    method: 'GET',
+                    success: function (result) {
+                        var title = result[0]['title'];
+                        var content = result[0]['content'];
+                        var date = result[0]['date'];
+                        $("#modal-title").html(title);
+                        $('.document_content_text').html(content);
+                        $('.document_content_date').html(date);
+                        $('.document_content_id').html(docid);
+                        loaded_docs[docid] = {
+                            "title": title,
+                            "content": content,
+                            "date": date
+                        };
+                    },
+                    error: function (result) {
+                        var error_msg = "<code>" + "[" + result['status'] + "] " + "Failed to get document. Error message: " + result["statusText"] + "." + "</code>";
+                        modal.find('.document_content').html(error_msg).addClass("text-danger");
+                        console.error(error_msg);
+                    },
+                    statusCode: {
+                        502: function (xhr) {
+                            var error_msg = "<code>" + "[502] Failed to get document. Error message: " + xhr.responseText + "</code>";
+                            modal.find('.document_content').html(error_msg).addClass("text-danger");
+                            console.error(error_msg);
+                        }
+                    }
+                });
+            }else{
+                var title = loaded_docs[docid]["title"];
+                var content = loaded_docs[docid]["content"];
+                var date = loaded_docs[docid]["date"];
+                $("#modal-title").html(title);
+                $('.document_content_text').html(content);
+                $('.document_content_date').html(date);
+                $('.document_content_id').html(docid);
+            }
+        }
+
+
+        $(function() {
+
+          // the input field
+          var $input = $("#search_content_doc"),
+            // clear button
+            $clearBtn = $("button[data-search='clear']"),
+            // prev button
+            $prevBtn = $("button[data-search='prev']"),
+            // next button
+            $nextBtn = $("button[data-search='next']"),
+            // the context where to search
+            $content = $("#doc-modal"),
+            // list of selectors to ignore during the search
+            $exclude = [".document_content_date", ".document_content_id", ".sidebar-nav-fixed", ".btn", ".gray-text", ".badge"],
+            // jQuery object to save <mark> elements
+            $results = "",
+            // the class that will be appended to the current
+            // focused element
+            currentClass = "current",
+            // top offset for the jump (the search bar)
+            offsetTop = 50,
+            // the current index of the focused element
+            currentIndex = 0;
+
+            var search_form = document.getElementById("search_content_doc");
+
+
+          /**
+           * Jumps to the element matching the currentIndex
+           */
+          function jumpTo() {
+            if ($results.length) {
+              $input.addClass("greenBorder").css("border-color","#449D44");
+              var position,
+                $current = $results.eq(currentIndex);
+              $results.removeClass(currentClass);
+              if ($current.length) {
+                $current.addClass(currentClass);
+                position = $current[0].offsetTop - offsetTop;
+                $("#doc-modal").scrollTop(position);
+              }
+            }else{
+              if(!$input.val()){
+                  $input.removeAttr( 'style' );
+              }else if ($input.is(':focus')){
+                $input.addClass("redBorder").css("border-color","#C9302C");
+              }
+              $("#doc-modal").scrollTop(0);
+            }
+          }
+
+          /**
+           * Searches for the entered keyword in the
+           * specified context on input
+           */
+          $input.on("input", function() {
+            var searchVal = this.value;
+            $content.unmark({
+              done: function() {
+                $content.mark(searchVal, {
+                  separateWordSearch: true,
+                  exclude: $exclude,
+                  done: function() {
+                    updateMatchesLists();
+                    $results = $content.find("mark");
+                    currentIndex = 0;
+                    jumpTo();
+                  }
+                });
+              }
+            });
+          });
+
+          $content.on( "updated", function() {
+              var searchVal = $input.val();
+               if(searchVal != undefined){
+                   $content.unmark({
+                      done: function () {
+                          $content.mark(searchVal, {
+                              separateWordSearch: true,
+                              exclude: $exclude,
+                              done: function () {
+                                  updateMatchesLists();
+                                  $results = $content.find("mark");
+                                  currentIndex = 0;
+                              }
+                          });
+                      }
+                  });
+               }
+            });
+
+          /**
+           * Clears the search
+           */
+          $clearBtn.on("click", function() {
+            resetMatchesDict();
+            $content.unmark();
+            $input.val("").focus();
+          });
+
+          /**
+           * Next and previous search jump to
+           */
+          $nextBtn.add($prevBtn).on("click", function() {
+            if ($results.length) {
+              currentIndex += $(this).is($prevBtn) ? -1 : 1;
+              if (currentIndex < 0) {
+                currentIndex = $results.length - 1;
+              }
+              if (currentIndex > $results.length - 1) {
+                currentIndex = 0;
+              }
+              jumpTo();
+            }
+          });
+        });
+
+    </script>
+{% endblock %}

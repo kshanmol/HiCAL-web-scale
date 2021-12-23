@@ -1,0 +1,61 @@
+version: '2'  
+
+volumes:
+  postgres_data_local: {}
+  postgres_backup_local: {}
+
+services:
+  cal:
+    build: ./CALEngine/
+    container_name: cal
+    command: bash -c "ulimit -s 65536; cd /src; make clean; DEBUG=${DEBUG} make bmi_fcgi && /usr/bin/spawn-fcgi -p 8002 -n -- ./bmi_fcgi --doc-features ${DOC_BIN} --para-features ${PARA_BIN} --threads 8"
+    volumes:
+      - ./CALEngine:/src
+      - ./data:/data
+      - ./zpipe:/zpipe
+      - /mnt:/mnt
+    expose:
+      - "8002"
+
+  django:
+    build:
+      context: ./HiCALWeb
+      dockerfile: ./compose/local/django/Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - ./HiCALWeb:/app
+    environment:
+      - POSTGRES_USER=hicalweb
+      - USE_DOCKER=yes
+    expose:
+      - "8001"
+    command: /start.sh
+
+  postgres:
+    build:
+      context: ./HiCALWeb
+      dockerfile: ./compose/production/postgres/Dockerfile
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+      - postgres_backup_local:/backups
+    environment:
+      - POSTGRES_USER=hicalweb
+      - POSTGRES_HOST_AUTH_METHOD=trust
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    expose:
+      - "9001"
+      - "9000"
+    volumes:
+      - ./config/nginx:/etc/nginx
+      - ./HiCALWeb:/app
+      - ./data:/data
+    depends_on:
+      - django
+      - cal

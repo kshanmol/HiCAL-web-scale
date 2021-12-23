@@ -1,0 +1,254 @@
+{% load staticfiles i18n static raven has_group crispy_forms_tags %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+      <meta name="description" content="HiCAL">
+      <meta name="author" content="University of Waterloo - Information Retrieval Lab">
+      <title>HiCAL - {% block pagetitle %}home{% endblock %}</title>
+      <!-- Bootstrap core CSS -->
+      <link href="{% static 'css/hical-bootstrap.min.css' %}" rel="stylesheet">
+      <!-- Custom styles for HiCAL -->
+      <link href="{% static 'css/project.css' %}" rel="stylesheet">
+      <!-- Other -->
+      <link href="{% static 'css/pace.css' %}" rel="stylesheet">
+      <link href="{% static 'css/font-awesome-all.css' %}" rel="stylesheet">
+      {% include "raven-config.html" %}
+      <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+      <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+      {% block extra_head %}{% endblock %}
+  </head>
+
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+        <a class="navbar-brand border-sm-0 border-md-right pr-4" href="/">
+          <img src="{% static 'images/hicalsmall.png' %}" width="31" height="31" alt="">
+        </a>
+      {% block navbar-noncollapse %}{% endblock %}
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbars">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbars">
+        {% if request.user.is_authenticated and request.user.current_task %}
+        <div class="navbar-nav">
+          <a class="nav-item nav-link" href="{% url 'search:main' %}">Search</a>
+          <a class="nav-item nav-link" href="{% url 'CAL:main' %}">CAL</a>
+        </div>
+        {% endif %}
+        <ul class="nav navbar-nav flex-fill justify-content-center center-text pl-5 pr-5 {%block navbar-hidesmall %}d-none d-sm-block{%endblock%}">
+          {% block navbar-center %}
+          <span class="navbar-text text-truncate" style="max-width: 15rem;">
+           {% if request.user.current_task %}{{user.current_task.topic.title}}{% elif request.user.is_authenticated %}Please create a new session{% endif %}
+          </span>
+          {% endblock %}
+        </ul>
+
+        {% block navbar-form %} {% endblock %}
+
+        <ul class="navbar-nav pl-md-3 border-sm-0 border-md-left ml-0 ml-md-4">
+
+          <a class="nav-item nav-link"  data-toggle="modal" data-target="#helpModal" href="#">
+            <h5 class="d-none d-md-inline pr-2"><i class="fas fa-question-circle"></i></h5>
+            <span class="d-md-none">Help</span>
+          </a>
+
+          {% if request.user.is_authenticated %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown">
+              <h5 class="d-none d-md-inline pr-2"><i class="fas fa-user-circle"></i></h5>
+              <span class="d-md-none">Session</span>
+              <i class="fas fa-caret-down"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <a class="dropdown-item" href="{% url 'judgment:view' %}">Judged Documents</a>
+              <a class="dropdown-item" href="{% url 'progress:sessions' %}">View Sessions</a>
+
+              <div class="dropdown-divider"></div>
+              {% if request.user.is_authenticated and request.user|has_group:"practice" %}
+              <a href="{% url 'progress:practice_complete' %}" class="dropdown-item">Exit practice</a>
+              {% elif request.user.is_authenticated %}
+              <a class="dropdown-item" href="{% url 'account_logout'  %}">Sign out</a>
+              {% else %}
+              <a class="dropdown-item" href="{% url 'account_login' %}">Sign In</a>
+              {% endif %}
+            </div>
+          </li>
+          {% else %}
+          <a class="btn btn-secondary d-flex align-items-center" href="{% url 'progress:practice' %}">Click here to try</a>
+          {% endif %}
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Help modal -->
+    <div class="modal" id="helpModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title text-primary">{%block help-modal-title%}How to use HiCAL{%endblock%}</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            {%block help-modal-body%}<p>HiCAL is a system for efficient high-recall retrieval that allows retrieving and assessing relevant documents and provides high data processing performance with a user-friendly document assessment interface.</p>
+            <p>There are two retrieval components in HiCAL.</p>
+            <p><strong class="text-primary">Search:</strong> the search component allows you to search for documents using a search engine. Judgments made in the search component are used to train the CAL model.</p>
+            <p><strong class="text-primary">Continuous Active Learning (CAL):</strong> CAL is an iterative feedback process that uses a machine learning classifier to train on relevance judgments made by the user.
+             The CAL interface presents the user with top scoring unjudged documents in the collection. After each iteration of judging and re-training, the learning model improves and returns the next most likely relevant documents to judge.
+            </p>
+            <p class="text-muted small m-0">To learn more about HiCAL, visit the <a href="http://hical.github.io">project's website.</a></p>{%endblock%}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid">
+      <div class="row">
+        <main class="{%block main-class%}col-md-12 pt-4{%endblock%}">
+          {% block messages %}
+          {% if messages %}
+          {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}" role="alert">
+            <button type="button" class="close" data-dismiss="alert">
+              <span>&times;</span>
+            </button>
+            <p class="m-0">{% if message.tags == "success" %}<strong>Done</strong>{% endif %} {{ message }}</p>
+          </div>
+          {% endfor %}
+          {% endif %}
+          {% endblock %}
+          {% block main %}
+          MAIN CONTENT HERE
+          {% endblock %}
+        </main>
+
+        {% block extra_body %}{% endblock %}
+
+      </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="{% static 'js/jquery.mark.min.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
+    <script>
+
+        function showAlarm(msg) {
+            var now = + new Date();
+            var data = {
+                'action': 'trig_user_gone_away',
+                'message': 'Alert message is shown to user.',
+                'extra_context': {
+                    'alert_msg': msg
+                },
+                'client_time': now,
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'page_title': document.title
+            };
+            $.ajax({
+                url: '{% url 'progress:post_log_msg' %}',
+                method: 'POST',
+                data: JSON.stringify(data),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+
+            alert(msg);
+            document.body.click();
+            now = + new Date();
+            data = {
+                'action': 'trig_user_came_back',
+                'message': 'User clicked ok to alert message.',
+                'extra_context': {
+                    'alert_msg': msg
+                },
+                'client_time': now,
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'page_title': document.title
+            };
+            $.ajax({
+                url: '{% url 'progress:post_log_msg' %}',
+                method: 'POST',
+                data: JSON.stringify(data),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+        }
+        window.jquery_ajax = $.ajax;
+        $.ajax = function (param) {
+            var tmp_success_callback = param['success'];
+            param['success'] = function (data, tmp, xhr) {
+                if (xhr.getResponseHeader('completed') == "1" && window.location.pathname != "/completed/") {
+                    window.location.href = "/completed/";
+                } else
+                    tmp_success_callback(data, tmp, xhr);
+            };
+            window.jquery_ajax(param);
+        };
+
+        $('#desc_popover').on('show.bs.popover', function () {
+            var now = +new Date();
+            var data = {
+                'action': 'trig_user_clicked_on_topic_desc',
+                'message': 'User clicked on the topic desc.',
+                'extra_context': {
+                    "topic_title": "{{ user.current_task.topic.title|escapejs }}"
+                },
+                'client_time': now,
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'page_title': document.title
+            };
+            $.ajax({
+                url: '{% url 'progress:post_log_msg' %}',
+                method: 'POST',
+                data: JSON.stringify(data),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+        });
+
+        $(document).ready(function () {
+            $('[data-toggle="popover"]').popover({
+                trigger: 'focus'
+            });
+        });
+
+        // Notify server of page visit on page load
+        window.onload = function () {
+            var now = +new Date();
+            $.ajax({
+                url: '{% url 'progress:post_visit' %}',
+                method: 'POST',
+                data: JSON.stringify({
+                    'client_time': now,
+                    'page_title': document.title,
+                    'page_file': '{{ request.page_file }}',
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                }),
+                success: function (result) {
+                    console.log(result['message']);
+                }
+            });
+        };
+
+    window.paceOptions = {ajax: { trackMethods: ['GET', 'POST'] }};
+
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+
+    <script src="{% static 'js/pace.min.js' %}"></script>
+  </body>
+</html>
